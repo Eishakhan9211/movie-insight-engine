@@ -9,9 +9,9 @@ try:
     # We use sep='\t' because .tsv files are Tab-Separated
     # na_values='\\N' tells pandas to treat IMDb's "\N" as empty data
     df = pd.read_csv(
-        'title.basics.tsv', 
-        sep='\t', 
-        low_memory=False, 
+        'title.basics.tsv',
+        sep='\t',
+        low_memory=False,
         na_values='\\N',
         dtype=str
     )
@@ -27,7 +27,7 @@ try:
     df['startYear'] = pd.to_numeric(df['startYear'], errors='coerce')
     df = df.dropna(subset=['startYear'])
     df['startYear'] = df['startYear'].astype(int)
-    
+
     # We focus on movies released up to the current year
     df = df[df['startYear'] <= 2026]
 
@@ -44,9 +44,9 @@ try:
 
     # Create the Bar Chart
     sns.barplot(
-        x=genre_counts_k.values, 
-        y=genre_counts_k.index, 
-        palette='viridis', 
+        x=genre_counts_k.values,
+        y=genre_counts_k.index,
+        palette='viridis',
         edgecolor='black'
     )
 
@@ -54,13 +54,13 @@ try:
     plt.title('Top 10 Movie Genres in the IMDb Dataset', fontsize=16, fontweight='bold')
     plt.xlabel('Number of Movies (in Thousands)', fontsize=12)
     plt.ylabel('Genres', fontsize=12)
-    
+
     # Add a subtle grid to make the bars easier to track
     plt.grid(axis='x', linestyle='--', alpha=0.6)
 
     # Adjust layout to prevent text clipping
     plt.tight_layout()
-    
+
     print("Generating visualization...")
     plt.show()
 
@@ -68,11 +68,11 @@ try:
     def get_recommendations(genre_name):
         print(f"\n Top 5 Newest '{genre_name.title()}' Movies:")
         print("-" * 40)
-        
+
         # Filter by genre and sort by year
         matches = df[df['genres'].str.contains(genre_name, case=False, na=False)]
         recs = matches.sort_values(by='startYear', ascending=False).head(5)
-        
+
         if recs.empty:
             print(f"No movies found for genre: {genre_name}")
         else:
