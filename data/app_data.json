@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "source": "sample",
+    "movieCount": 12500
+  },
+  "topGenres": [
+    {
+      "genre": "Drama",
+      "count": 185
+    },
+    {
+      "genre": "Comedy",
+      "count": 142
+    },
+    {
+      "genre": "Documentary",
+      "count": 98
+    },
+    {
+      "genre": "Romance",
+      "count": 76
+    },
+    {
+      "genre": "Thriller",
+      "count": 71
+    },
+    {
+      "genre": "Action",
+      "count": 68
+    },
+    {
+      "genre": "Horror",
+      "count": 52
+    },
+    {
+      "genre": "Sci-Fi",
+      "count": 48
+    },
+    {
+      "genre": "Animation",
+      "count": 39
+    },
+    {
+      "genre": "Crime",
+      "count": 35
+    }
+  ],
+  "recommendations": {
+    "drama": [
+      {
+        "title": "Echoes of Tomorrow",
+        "year": 2025
+      },
+      {
+        "title": "The Last Ceremony",
+        "year": 2024
+      },
+      {
+        "title": "Paper Bridges",
+        "year": 2023
+      },
+      {
+        "title": "Winter Orchard",
+        "year": 2022
+      },
+      {
+        "title": "Quiet Rails",
+        "year": 2021
+      }
+    ],
+    "comedy": [
+      {
+        "title": "Sorted!",
+        "year": 2025
+      },
+      {
+        "title": "Budget Holiday",
+        "year": 2024
+      },
+      {
+        "title": "Roommates Anonymous",
+        "year": 2023
+      },
+      {
+        "title": "Spill the Soup",
+        "year": 2022
+      },
+      {
+        "title": "Dial M for Mime",
+        "year": 2021
+      }
+    ],
+    "action": [
+      {
+        "title": "Night Courier",
+        "year": 2025
+      },
+      {
+        "title": "Steel Horizon",
+        "year": 2024
+      },
+      {
+        "title": "Rogue Vector",
+        "year": 2023
+      },
+      {
+        "title": "Concrete Tide",
+        "year": 2022
+      },
+      {
+        "title": "Burn Curve",
+        "year": 2021
+      }
+    ],
+    "sci-fi": [
+      {
+        "title": "Orbital Drift",
+        "year": 2025
+      },
+      {
+        "title": "Signal from Kepler-442",
+        "year": 2024
+      },
+      {
+        "title": "Ash Astronaut",
+        "year": 2023
+      },
+      {
+        "title": "The Quiet Sun",
+        "year": 2022
+      },
+      {
+        "title": "Dust Architects",
+        "year": 2021
+      }
+    ],
+    "horror": [
+      {
+        "title": "The House Below Zero",
+        "year": 2025
+      },
+      {
+        "title": "Static on Channel 6",
+        "year": 2024
+      },
+      {
+        "title": "Borrowed Faces",
+        "year": 2023
+      },
+      {
+        "title": "Midnight Inventory",
+        "year": 2022
+      },
+      {
+        "title": "Glass in the Walls",
+        "year": 2021
+      }
+    ]
+  }
+}

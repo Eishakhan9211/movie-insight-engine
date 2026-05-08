@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IMDb Movie Insight & Recommendations</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #5c9eff;
+      --accent-dim: #3d6fad;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      padding: 1.5rem 1.25rem 0.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.55rem;
+      font-weight: 700;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 2.5rem;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel h2 {
+      margin: 0 0 1rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+    }
+    .search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input[type="text"]::placeholder { color: var(--muted); opacity: 0.8; }
+    button {
+      padding: 0.65rem 1.1rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #0a0f14;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    button:hover { background: #7eb0ff; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .results h3 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+    }
+    ol.recs {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+    ol.recs li { margin: 0.35rem 0; }
+    .err, .loading {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .err { color: #f08888; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IMDb Movie Insight &amp; Recommendation Engine</h1>
+    <p>Genre trends from your dataset and the five newest matches per genre.</p>
+  </header>
+  <main>
+    <div class="panel">
+      <h2>Top 10 genres</h2>
+      <div class="meta" id="meta"></div>
+      <div class="chart-wrap">
+        <canvas id="genreChart" aria-label="Top genres bar chart"></canvas>
+      </div>
+      <p class="loading" id="chartStatus"></p>
+    </div>
+    <div class="panel">
+      <h2>Search by genre</h2>
+      <div class="search-row">
+        <input type="text" id="genreInput" placeholder="e.g. Comedy, Action, Sci-Fi" autocomplete="off" />
+        <button type="button" id="searchBtn">Recommend</button>
+      </div>
+      <div class="results" id="results"></div>
+    </div>
+  </main>
+  <script>
+    const DATA_URL = "data/app_data.json";
+
+    function norm(s) {
+      return String(s || "").trim().toLowerCase();
+    }
+
+    function pickRecommendations(data, query) {
+      const q = norm(query);
+      if (!q) return { key: null, items: [], note: "Enter a genre." };
+      const exact = data.recommendations[q];
+      if (exact && exact.length) return { key: q, items: exact, note: null };
+      const keys = Object.keys(data.recommendations || {});
+      const partial = keys.filter(
+        (k) => k.includes(q) || q.includes(k)
+      );
+      partial.sort((a, b) => a.length - b.length);
+      for (const k of partial) {
+        const items = data.recommendations[k];
+        if (items && items.length) return { key: k, items, note: null };
+      }
+      return {
+        key: null,
+        items: [],
+        note: "No precomputed matches for that term. Run python build_data.py with your IMDb TSV to refresh genres.",
+      };
+    }
+
+    async function loadData() {
+      const res = await fetch(DATA_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error("Could not load " + DATA_URL);
+      return res.json();
+    }
+
+    function renderChart(data) {
+      const labels = data.topGenres.map((g) => g.genre);
+      const values = data.topGenres.map((g) => +(g.count / 1000).toFixed(3));
+      const ctx = document.getElementById("genreChart");
+      return new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Movies (thousands)",
+              data: values,
+              backgroundColor: "rgba(92, 158, 255, 0.75)",
+              borderColor: "rgba(45, 58, 79, 1)",
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (c) => {
+                  const raw = data.topGenres[c.dataIndex].count;
+                  return `${raw.toLocaleString()} movies`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(45, 58, 79, 0.9)" },
+              ticks: { color: "#8b9cb3" },
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: "#e7ecf3" },
+            },
+          },
+        },
+      });
+    }
+
+    function setMeta(data) {
+      const m = data.meta || {};
+      const src = m.source || "unknown";
+      const n = typeof m.movieCount === "number" ? m.movieCount.toLocaleString() : "?";
+      document.getElementById("meta").textContent =
+        `Dataset: ${src} — ${n} movie rows used for this build.`;
+    }
+
+    function renderResults(data, query) {
+      const el = document.getElementById("results");
+      const { key, items, note } = pickRecommendations(data, query);
+      if (note) {
+        el.innerHTML = `<p class="err">${note}</p>`;
+        return;
+      }
+      const title = key ? key.replace(/\b\w/g, (c) => c.toUpperCase()) : query;
+      const lis = items
+        .map((r) => `<li><strong>${escapeHtml(r.title)}</strong> (${r.year})</li>`)
+        .join("");
+      el.innerHTML = `<h3>Top 5 newest &mdash; ${escapeHtml(title)}</h3><ol class="recs">${lis}</ol>`;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    (async function init() {
+      const status = document.getElementById("chartStatus");
+      const btn = document.getElementById("searchBtn");
+      const input = document.getElementById("genreInput");
+      status.textContent = "Loading data…";
+      btn.disabled = true;
+      let data;
+      try {
+        data = await loadData();
+      } catch (e) {
+        status.textContent = "";
+        status.className = "err";
+        status.textContent = String(e.message || e);
+        return;
+      }
+      setMeta(data);
+      renderChart(data);
+      status.textContent = "";
+      btn.disabled = false;
+
+      function go() {
+        renderResults(data, input.value);
+      }
+      btn.addEventListener("click", go);
+      input.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") go();
+      });
+    })();
+  </script>
+</body>
+</html>
