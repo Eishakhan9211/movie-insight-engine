@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 OUT_PATH = ROOT / "data" / "app_data.json"
 CURRENT_YEAR = 2026
+CHUNK_SIZE = 80_000
+USECOLS = ["titleType", "startYear", "genres", "primaryTitle"]
 
 
 def _write(obj: dict) -> None:
@@ -85,47 +88,71 @@ def build_sample() -> dict:
     }
 
 
+def _merge_top5(
+    current: list[tuple[int, str]], additions: list[tuple[int, str]], k: int = 5
+) -> list[tuple[int, str]]:
+    return sorted(current + additions, key=lambda x: -x[0])[:k]
+
+
 def build_from_tsv(tsv_path: Path) -> dict:
-    df = pd.read_csv(
+    genre_counter: Counter[str] = Counter()
+    best_per_genre: dict[str, list[tuple[int, str]]] = defaultdict(list)
+    n_movies = 0
+
+    reader = pd.read_csv(
         tsv_path,
         sep="\t",
-        low_memory=False,
+        chunksize=CHUNK_SIZE,
         na_values="\\N",
         dtype=str,
-        usecols=["titleType", "startYear", "genres", "primaryTitle"],
+        usecols=USECOLS,
+        low_memory=True,
     )
-    df = df[df["titleType"] == "movie"].copy()
-    df = df.dropna(subset=["startYear", "genres", "primaryTitle"])
-    df["startYear"] = pd.to_numeric(df["startYear"], errors="coerce")
-    df = df.dropna(subset=["startYear"])
-    df["startYear"] = df["startYear"].astype(int)
-    df = df[df["startYear"] <= CURRENT_YEAR]
 
-    n = len(df)
-    genre_series = df["genres"].str.split(",").explode()
-    top_counts = genre_series.value_counts().head(10)
-    top_genres = [
-        {"genre": str(name), "count": int(count)}
-        for name, count in top_counts.items()
-    ]
-
-    unique_labels = sorted(genre_series.dropna().unique(), key=str.lower)
-    recommendations: dict[str, list[dict]] = {}
-    for label in unique_labels:
-        if not label:
+    for chunk in reader:
+        chunk = chunk[chunk["titleType"] == "movie"]
+        chunk = chunk.dropna(subset=["startYear", "genres", "primaryTitle"])
+        if chunk.empty:
             continue
-        key = str(label).lower()
-        matches = df[df["genres"].str.contains(label, case=False, na=False, regex=False)]
-        recs = matches.sort_values(by="startYear", ascending=False).head(5)
-        rows = [
-            {"title": str(r["primaryTitle"]), "year": int(r["startYear"])}
-            for _, r in recs.iterrows()
+        chunk = chunk.copy()
+        chunk["startYear"] = pd.to_numeric(chunk["startYear"], errors="coerce")
+        chunk = chunk.dropna(subset=["startYear"])
+        chunk["startYear"] = chunk["startYear"].astype(int)
+        chunk = chunk[chunk["startYear"] <= CURRENT_YEAR]
+        if chunk.empty:
+            continue
+
+        n_movies += len(chunk)
+
+        exploded = chunk["genres"].str.split(",").explode().str.strip().dropna()
+        exploded = exploded[exploded != ""]
+        genre_counter.update(exploded)
+
+        tmp = chunk.assign(_g=chunk["genres"].str.split(",")).explode("_g")
+        tmp["_g"] = tmp["_g"].str.strip()
+        tmp = tmp[tmp["_g"].notna() & (tmp["_g"] != "")]
+        for g, y, t in zip(tmp["_g"], tmp["startYear"], tmp["primaryTitle"]):
+            key = str(g).lower()
+            y_int = int(y)
+            title = str(t)
+            best_per_genre[key] = _merge_top5(best_per_genre[key], [(y_int, title)])
+
+    if n_movies == 0:
+        raise ValueError("No movie rows found in TSV.")
+
+    top_counts = genre_counter.most_common(10)
+    top_genres = [{"genre": str(name), "count": int(count)} for name, count in top_counts]
+
+    recommendations: dict[str, list[dict]] = {}
+    for key, pairs in best_per_genre.items():
+        if not pairs:
+            continue
+        recommendations[key] = [
+            {"title": title, "year": year} for year, title in sorted(pairs, key=lambda x: -x[0])
         ]
-        if rows:
-            recommendations[key] = rows
 
     return {
-        "meta": {"source": "imdb_title_basics", "movieCount": n},
+        "meta": {"source": "imdb_title_basics", "movieCount": n_movies},
         "topGenres": top_genres,
         "recommendations": recommendations,
     }
