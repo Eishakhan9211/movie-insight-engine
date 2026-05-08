@@ -83,14 +83,10 @@ try:
     # Example Test
     get_recommendations("Sci-Fi")
 
+    user_choice = input("Enter a genre (e.g., Comedy, Action, Horror): ")
+    get_recommendations(user_choice)
+
 except FileNotFoundError:
     print("ERROR: 'title.basics.tsv' not found in the current folder.")
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
-
-
-# This line creates a prompt in your terminal/console
-user_choice = input("Enter a genre (e.g., Comedy, Action, Horror): ")
-
-# This line feeds that choice into your 'engine'
-get_recommendations(user_choice)
